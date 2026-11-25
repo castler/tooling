@@ -12,6 +12,50 @@
 # *******************************************************************************
 
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//:l4.bzl", "l4_test")
+
+sh_binary(
+    name = "run_child",
+    srcs = ["run_child.sh"],
+)
+
+l4_test(
+    name = "minimal_example_test",
+    module = "minimal_requirements",
+)
+
+l4_test(
+    name = "some_other_library_example_test",
+    module = "some_other_library",
+)
+
+l4_test(
+    name = "seooc_example_test",
+    module = "seooc",
+    overrides = ["some_other_library"],
+)
+
+l4_test(
+    name = "integrator_example_test",
+    module = "integrator",
+    overrides = [
+        "seooc",
+        "some_other_library",
+    ],
+)
+
+l4_test(
+    name = "failure_cases_test",
+    cases = "@failure_cases//:cases.tsv",
+    module = "failure_cases",
+)
+
+l4_test(
+    name = "workflow_test",
+    cases = "@failure_cases//:workflow.tsv",
+    module = "failure_cases",
+)
 
 # Outer Bazel of this module and the nested Bazel (bazel_binaries) must match the root workspace.
 diff_test(

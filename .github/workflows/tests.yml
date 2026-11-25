@@ -144,6 +144,7 @@ jobs:
               bazel test //...
           - name: rules_score_integration_test
             run: |
+              export L4_CACHE_DIR="$RUNNER_TEMP/l4-cache"
               cd bazel/rules/rules_score/integration_test
               bazel test //...
           - name: minimal_example
@@ -184,5 +185,18 @@ jobs:
         uses: ./.github/actions/configure_ubuntu_snapshot_mirror
         with:
           ubuntu-snapshot-mirror-url: ${{ secrets.UBUNTU_SNAPSHOT_MIRROR_URL }}
+      - name: Restore L4 cache
+        if: matrix.name == 'rules_score_integration_test'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/l4-cache
+          key: l4-${{ runner.os }}-${{ hashFiles('.bazelversion', '**/MODULE.bazel') }}
+          restore-keys: l4-${{ runner.os }}-
       - name: Run ${{ matrix.name }}
         run: ${{ matrix.run }}
+      - name: Save L4 cache
+        if: matrix.name == 'rules_score_integration_test' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/l4-cache
+          key: l4-${{ runner.os }}-${{ hashFiles('.bazelversion', '**/MODULE.bazel') }}

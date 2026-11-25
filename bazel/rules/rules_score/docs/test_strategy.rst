@@ -190,7 +190,7 @@ Level responsibilities
    * - L4
      - A consumer's ``bazel build`` / ``bazel test``
      - Outcome (pass/fail) and stderr pattern per case, ``.update`` workflows,
-       lockfile, toolchain/extension consumption
+       bzlmod resolution with local overrides, toolchain/extension consumption
      - Output content (covered by L3)
 
 Example, "release gate fails the build": L0 checks that the tool exits non-zero
@@ -198,6 +198,45 @@ on broken input, L2 checks that no ``--warn-on-errors`` is passed under
 ``maturity = "release"``, L4 checks that one broken fixture fails with the
 expected message. Each level covers a different link of the chain.
 
+L4 conventions
+--------------
+
+``integration_test/`` runs each consumer in a copied child workspace and
+starts a nested Bazel process. The runner overrides ``score_tooling`` and any
+sibling modules with their source checkouts. It fails early when a consumer's
+``local_path_override`` is missing from ``l4_test(overrides = ...)`` or points
+to a different checkout than the override. It does not modify example
+workspaces or require a checked-in module lockfile. The outer Bazel test
+inherits proxy variables, optional ``L4_CACHE_DIR`` and optional
+``L4_DOWNLOADER_CONFIG``. When ``L4_CACHE_DIR`` is set, Bazel uses
+``$L4_CACHE_DIR/repo`` and ``$L4_CACHE_DIR/disk``; these caches persist across
+test runs. ``L4_DOWNLOADER_CONFIG`` is the CI download mirror, passed as
+``--downloader_config`` because ``user.bazelrc`` is not copied. CI restores and
+saves the cache and sets the mirror.
+
+Nested Bazel processes are independent and share only the content-addressed
+caches, so L4 tests run in parallel. Test results are never cached by Bazel
+(``external``): the runner reads the consumer sources outside the declared
+inputs. ``integration_test/.bazelrc`` limits concurrency with
+``--local_test_jobs``, because each nested Bazel needs about 5 GB.
+
+Example-mode tests report ``L4 STAGE`` boundaries for build and test with
+their duration. Case-mode tests validate the case file, then report each
+``L4 CASE`` command and its verdict. A failure skips later lines with the same
+case ID but does not stop other cases. The final summary names each failed case
+and command. Nested Bazel output is streamed, so
+``bazel test //:<target> --test_output=streamed`` follows one nested test live.
+
+``failure_cases/cases.tsv`` and ``workflow.tsv`` are tab-separated, with one
+command per row and five non-empty fields::
+
+   case_id<TAB>build|test|run<TAB>target<TAB>pass|fail<TAB>ERE-or--
+
+Lines for a case stay together and run in order. ``test`` adds
+``--test_output=errors``; ``-`` skips the output-pattern check and is not
+allowed for ``fail`` rows. Add one isolated fixture package for each failure
+and assert its stage and stable diagnostic pattern. Keep positive, negative,
+and workflow fixtures out of ``examples/``.
 Golden policy
 -------------
 

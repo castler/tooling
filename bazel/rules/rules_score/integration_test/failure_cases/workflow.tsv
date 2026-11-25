@@ -1,0 +1,5 @@
+# case	cmd	target	expect	regex
+lock_update	build	//workflow_lock_update/...	fail	Coverage lock file is out of date
+lock_update	run	//workflow_lock_update:SampleComponent.update	pass	-
+lock_update	build	//workflow_lock_update/...	pass	-
+lock_update	test	//workflow_lock_update/...	pass	-
